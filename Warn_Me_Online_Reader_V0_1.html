@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>LiteraryLens — Content-Aware Text Reader</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* ─── Design tokens ────────────────────────────────────────────────────── */
+:root {
+  --cream:          #fdf6ee;
+  --parchment:      #f5e8d4;
+  --peach-pale:     #fbe3cf;
+  --peach:          #e8a07a;
+  --peach-dark:     #c97b52;
+  --terracotta:     #a05c3b;
+  --brown-ink:      #4a2e1a;
+  --brown-mid:      #7a4a30;
+  --brown-faint:    #c4a48a;
+  --sage:           #9caa8e;
+  --dusty-rose:     #c8907a;
+
+  --absent-bg:      #eef4eb;
+  --absent-txt:     #4a7040;
+  --absent-border:  #b8d4b0;
+  --weak-bg:        #fdf3e3;
+  --weak-txt:       #8a6020;
+  --weak-border:    #f0cc88;
+  --strong-bg:      #fde8e3;
+  --strong-txt:     #9a3020;
+  --strong-border:  #f0a898;
+
+  --font-display:   'Playfair Display', Georgia, serif;
+  --font-ui:        'DM Sans', system-ui, sans-serif;
+  --sidebar-w:      280px;
+  --radius-sm:      6px;
+  --radius-md:      12px;
+  --radius-lg:      18px;
+  --shadow-sm:      0 2px 8px rgba(74,46,26,0.08);
+  --shadow-md:      0 6px 28px rgba(74,46,26,0.12);
+  --shadow-lg:      0 16px 56px rgba(74,46,26,0.18);
+  --transition:     0.22s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+
+body {
+  font-family: var(--font-ui);
+  background: var(--cream);
+  color: var(--brown-ink);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ─── Subtle grain ─────────────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Header ──────────────────────────────────────────────────────────── */
+header {
+  position: relative;
+  z-index: 10;
+  background: var(--parchment);
+  border-bottom: 1px solid var(--peach-pale);
+  padding: 0 28px;
+  height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 500;
+  color: var(--terracotta);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.logo em { font-style: italic; color: var(--peach-dark); }
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--peach);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 18px;
+  font-family: var(--font-ui);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--transition), box-shadow var(--transition), transform 0.1s;
+  box-shadow: 0 2px 8px rgba(232,160,122,0.35);
+  white-space: nowrap;
+}
+.upload-label:hover { background: var(--peach-dark); box-shadow: 0 4px 14px rgba(201,123,82,0.4); }
+.upload-label:active { transform: scale(0.97); }
+#file-input { display: none; }
+
+#file-name {
+  font-size: 0.8rem;
+  color: var(--brown-mid);
+  font-style: italic;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.backend-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.73rem;
+  color: var(--brown-mid);
+  white-space: nowrap;
+}
+.backend-badge select {
+  border: 1px solid var(--peach);
+  background: var(--cream);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-family: var(--font-ui);
+  font-size: 0.73rem;
+  color: var(--brown-ink);
+  cursor: pointer;
+  outline: none;
+}
+.backend-badge select:focus { border-color: var(--peach-dark); }
+
+/* ─── Layout ────────────────────────────────────────────────────────────── */
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── Sidebar ───────────────────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--parchment);
+  border-right: 1px solid var(--peach-pale);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 22px 20px 30px;
+  box-shadow: 2px 0 12px rgba(74,46,26,0.05);
+}
+
+.sidebar-section { margin-bottom: 26px; }
+
+.sidebar-heading {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--terracotta);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--peach-pale);
+}
+
+.filter-card {
+  background: var(--cream);
+  border: 1px solid var(--peach-pale);
+  border-radius: var(--radius-md);
+  padding: 14px 14px 12px;
+  margin-bottom: 10px;
+  transition: box-shadow var(--transition);
+}
+.filter-card:hover { box-shadow: var(--shadow-sm); }
+
+.filter-card-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--brown-mid);
+  margin-bottom: 10px;
+}
+.cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-sn  { background: var(--dusty-rose); }
+.dot-psv { background: var(--peach-dark); }
+.dot-phv { background: var(--sage); }
+
+/* Segmented controls */
+.seg-control {
+  display: flex;
+  background: var(--parchment);
+  border: 1px solid var(--peach-pale);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.seg-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: 0.67rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--brown-mid);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  border-right: 1px solid var(--peach-pale);
+  text-align: center;
+}
+.seg-btn:last-child { border-right: none; }
+.seg-btn:hover:not(.active) { background: var(--peach-pale); }
+.seg-btn.active.level-absent { background: var(--absent-bg); color: var(--absent-txt); font-weight: 500; }
+.seg-btn.active.level-weak   { background: var(--weak-bg);   color: var(--weak-txt);   font-weight: 500; }
+.seg-btn.active.level-strong { background: var(--strong-bg); color: var(--strong-txt); font-weight: 500; }
+
+/* Stats */
+.stats-strip { display: flex; flex-direction: column; gap: 8px; }
+.stat-row { display: flex; align-items: center; gap: 8px; font-size: 0.71rem; color: var(--brown-mid); }
+.stat-label { min-width: 82px; flex-shrink: 0; }
+.stat-bar-track { flex: 1; height: 5px; background: var(--peach-pale); border-radius: 3px; overflow: hidden; }
+.stat-bar-fill { height: 100%; border-radius: 3px; background: var(--peach); transition: width 0.5s ease; }
+.stat-count { font-size: 0.67rem; color: var(--brown-faint); min-width: 28px; text-align: right; }
+
+/* Legend */
+.legend { display: flex; flex-direction: column; gap: 5px; }
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 0.69rem; color: var(--brown-mid); }
+.legend-pip { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+/* ─── Reader ────────────────────────────────────────────────────────────── */
+.reader-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 28px 36px 20px;
+}
+
+/* Empty state */
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  animation: fadeIn 0.4s ease;
+}
+.empty-state svg { color: var(--peach); opacity: 0.65; }
+.empty-state h2 {
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 400;
+  color: var(--terracotta);
+  font-style: italic;
+}
+.empty-state p {
+  font-size: 0.82rem;
+  color: var(--brown-mid);
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.75;
+}
+.empty-steps { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.empty-step { display: flex; align-items: center; gap: 10px; font-size: 0.77rem; color: var(--brown-mid); }
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--peach-pale);
+  border: 1px solid var(--peach);
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--terracotta);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Active reader */
+.reader-active {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  animation: fadeIn 0.3s ease;
+}
+.reader-active.visible { display: flex; }
+
+.reader-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.page-info-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brown-faint);
+}
+
+.classification-badges { display: flex; gap: 7px; flex-wrap: wrap; }
+.cbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 7px;
+  border-radius: 20px;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.cbadge .cbadge-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.cbadge-absent { background: var(--absent-bg); color: var(--absent-txt); border-color: var(--absent-border); }
+.cbadge-weak   { background: var(--weak-bg);   color: var(--weak-txt);   border-color: var(--weak-border); }
+.cbadge-strong { background: var(--strong-bg); color: var(--strong-txt); border-color: var(--strong-border); }
+
+/* Text card */
+.text-card-wrapper { flex: 1; position: relative; min-height: 0; }
+.text-card {
+  position: absolute;
+  inset: 0;
+  background: #fffbf6;
+  border: 1px solid var(--peach-pale);
+  border-radius: var(--radius-lg);
+  padding: 38px 48px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-md);
+  transition: filter 0.35s ease;
+}
+.text-card.is-blurred {
+  filter: blur(8px) saturate(0.5);
+  pointer-events: none;
+  user-select: none;
+}
+.text-card::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--peach), transparent);
+  margin-bottom: 28px;
+  border-radius: 1px;
+}
+#page-text {
+  font-family: var(--font-display);
+  font-size: 1.18rem;
+  line-height: 2;
+  color: var(--brown-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Blur overlay */
+.blur-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+  align-items: center;
+  justify-content: center;
+}
+.blur-overlay.visible { display: flex; }
+.blur-overlay-hint {
+  background: rgba(253,246,238,0.9);
+  border: 1px solid var(--peach);
+  border-radius: var(--radius-md);
+  padding: 12px 22px;
+  font-size: 0.75rem;
+  color: var(--terracotta);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+}
+
+/* Navigation */
+.nav-bar {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  justify-content: center;
+}
+.nav-arrow {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--peach);
+  background: var(--parchment);
+  color: var(--terracotta);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition), transform 0.1s;
+  flex-shrink: 0;
+}
+.nav-arrow:hover:not(:disabled) { background: var(--peach-pale); }
+.nav-arrow:active:not(:disabled) { transform: scale(0.92); }
+.nav-arrow:disabled { opacity: 0.3; cursor: default; }
+
+.slider-wrap { flex: 1; max-width: 320px; display: flex; align-items: center; gap: 12px; }
+
+input[type="range"]#page-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 4px;
+  background: var(--peach-pale);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]#page-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--peach);
+  border: 2px solid var(--peach-dark);
+  box-shadow: 0 1px 4px rgba(201,123,82,0.3);
+  cursor: pointer;
+  transition: background var(--transition), transform 0.1s;
+}
+input[type="range"]#page-slider::-webkit-slider-thumb:hover { background: var(--peach-dark); transform: scale(1.15); }
+input[type="range"]#page-slider::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--peach);
+  border: 2px solid var(--peach-dark);
+  cursor: pointer;
+}
+.page-counter { font-size: 0.72rem; color: var(--brown-faint); white-space: nowrap; min-width: 54px; text-align: center; }
+
+/* Progress bar */
+.progress-bar-track {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--peach-pale);
+  z-index: 1000;
+}
+.progress-bar-track.active { display: block; }
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--peach), var(--peach-dark));
+  border-radius: 0 2px 2px 0;
+  transition: width 0.25s ease;
+}
+
+/* ─── Modal ─────────────────────────────────────────────────────────────── */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(74,46,26,0.28);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop.open { display: flex; }
+
+.modal {
+  background: var(--cream);
+  border: 1px solid var(--peach);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 40px 44px;
+  max-width: 430px;
+  width: 90vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.88) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.modal-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--strong-bg);
+  border: 1.5px solid var(--strong-border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--terracotta);
+  text-align: center;
+  font-style: italic;
+}
+.modal-body {
+  font-size: 0.82rem;
+  color: var(--brown-mid);
+  text-align: center;
+  line-height: 1.75;
+}
+.modal-cats { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.modal-cat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--strong-bg);
+  border: 1px solid var(--strong-border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.76rem;
+  color: var(--strong-txt);
+  font-weight: 500;
+}
+.modal-buttons { display: flex; gap: 12px; margin-top: 4px; width: 100%; }
+.btn-yes, .btn-no {
+  flex: 1;
+  padding: 11px 20px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  border: none;
+  transition: background var(--transition), transform 0.1s, box-shadow var(--transition);
+}
+.btn-yes { background: var(--peach-dark); color: #fff; box-shadow: 0 3px 10px rgba(201,123,82,0.3); }
+.btn-yes:hover { background: var(--terracotta); }
+.btn-no { background: var(--parchment); color: var(--terracotta); border: 1px solid var(--peach); }
+.btn-no:hover { background: var(--peach-pale); }
+.btn-yes:active, .btn-no:active { transform: scale(0.96); }
+
+/* ─── Utilities ─────────────────────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.text-card::-webkit-scrollbar { width: 5px; }
+.text-card::-webkit-scrollbar-track { background: transparent; }
+.text-card::-webkit-scrollbar-thumb { background: var(--peach-pale); border-radius: 3px; }
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--peach-pale); border-radius: 2px; }
+
+/* ─── Hamburger button (hidden on desktop) ───────────────────────────────── */
+.menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--peach);
+  background: var(--parchment);
+  color: var(--terracotta);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+.menu-btn:hover { background: var(--peach-pale); }
+
+/* ─── Drawer overlay (mobile only) ──────────────────────────────────────── */
+.drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(74,46,26,0.35);
+  backdrop-filter: blur(2px);
+}
+.drawer-overlay.open { display: block; }
+
+/* ─── Mobile bottom nav bar ──────────────────────────────────────────────── */
+.mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 50;
+  background: var(--parchment);
+  border-top: 1px solid var(--peach-pale);
+  padding: 10px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 -4px 20px rgba(74,46,26,0.10);
+}
+.mobile-nav .nav-arrow {
+  width: 48px; height: 48px;
+  flex-shrink: 0;
+}
+.mobile-nav .slider-wrap { flex: 1; }
+.mobile-nav .page-counter { min-width: 46px; font-size: 0.72rem; }
+
+/* ─── Tablet (≤ 900px) ───────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  :root { --sidebar-w: 260px; }
+  .reader-main { padding: 20px 24px 16px; }
+  .text-card { padding: 28px 30px; }
+  #page-text { font-size: 1.1rem; line-height: 1.95; }
+}
+
+/* ─── Mobile (≤ 700px) ───────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  /* Header */
+  header { padding: 0 14px; height: 56px; gap: 10px; }
+  .logo { font-size: 1.2rem; }
+  #file-name { display: none; }
+  .backend-badge { display: none; }
+  .menu-btn { display: flex; }
+
+  /* Sidebar becomes a slide-in drawer */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 210;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    width: 300px;
+    min-width: unset;
+    padding-top: 70px;
+    box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  /* Close button inside drawer */
+  .drawer-close {
+    display: flex;
+    position: absolute;
+    top: 14px; right: 14px;
+    width: 36px; height: 36px;
+    align-items: center; justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--peach);
+    background: var(--cream);
+    color: var(--terracotta);
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+
+  /* Reader */
+  .reader-main { padding: 14px 14px 0; } /* bottom handled by text-card itself */
+  .text-card { padding: 22px 18px calc(120px + env(safe-area-inset-bottom, 0px)); border-radius: var(--radius-md); }
+  .text-card::before { margin-bottom: 18px; }
+  #page-text { font-size: 1.05rem; line-height: 1.9; }
+
+  /* Hide desktop nav bar, show mobile one */
+  .nav-bar { display: none; }
+  .mobile-nav { display: flex; }
+
+  /* Badges: wrap more compactly */
+  .cbadge { font-size: 0.58rem; padding: 3px 8px 3px 6px; }
+
+  /* Topbar */
+  .reader-topbar { margin-bottom: 10px; }
+  .page-info-label { font-size: 0.68rem; }
+
+  .upload-label { padding: 8px 14px; }
+
+  /* Empty state */
+  .empty-state h2 { font-size: 1.25rem; }
+  .empty-state p { font-size: 0.78rem; }
+
+  /* Modal */
+  .modal { padding: 28px 24px; }
+  .modal-title { font-size: 1.1rem; }
+}
+
+/* ─── Small phones (≤ 400px) ─────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  .reader-main { padding: 10px 10px 0; }
+  .text-card { padding: 18px 14px calc(120px + env(safe-area-inset-bottom, 0px)); }
+  #page-text { font-size: 1rem; line-height: 1.85; }
+  .classification-badges { gap: 4px; }
+  .cbadge { font-size: 0.55rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Progress bar -->
+<div class="progress-bar-track" id="progress-track">
+  <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+</div>
+
+<!-- ─── Header ───────────────────────────────────────────────────────────── -->
+<header>
+  <button class="menu-btn" id="menu-btn" aria-label="Open filters" onclick="openDrawer()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <line x1="3" y1="6"  x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <div class="logo">Literary<em>Lens</em></div>
+
+  <div class="header-controls">
+    <label class="upload-label" for="file-input">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <span class="upload-label-text">Upload .txt</span>
+    </label>
+    <input type="file" id="file-input" accept=".txt" />
+    <span id="file-name">No file loaded</span>
+
+    <div class="backend-badge">
+      <span>Backend</span>
+      <select id="backend-select">
+        <option value="demo">Demo (no server)</option>
+        <option value="local">Python — localhost:5000</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<!-- ─── Drawer overlay (mobile) ──────────────────────────────────────────── -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+
+<!-- ─── App body ────────────────────────────────────────────────────────── -->
+<div class="app-body">
+
+  <!-- ─── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar">
+    <button class="drawer-close" onclick="closeDrawer()" aria-label="Close filters">✕</button>
+
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Content Filters</div>
+      <p style="font-size:0.69rem;color:var(--brown-faint);line-height:1.65;margin-bottom:14px;">
+        Choose your warning threshold per category. <strong>Weak</strong> blurs all flagged pages; <strong>Strong</strong> only blurs explicitly graphic content.
+      </p>
+
+      <!-- Sex & Nudity -->
+      <div class="filter-card">
+        <div class="filter-card-label">
+          <span class="cat-dot dot-sn"></span>Sex &amp; Nudity
+        </div>
+        <div class="seg-control" data-category="sex_nudity">
+          <button class="seg-btn level-weak active"   data-level="weak">Weak</button>
+          <button class="seg-btn level-strong"        data-level="strong">Strong</button>
+        </div>
+      </div>
+
+      <!-- Psychological Violence -->
+      <div class="filter-card">
+        <div class="filter-card-label">
+          <span class="cat-dot dot-psv"></span>Psychological Violence
+        </div>
+        <div class="seg-control" data-category="psych_violence">
+          <button class="seg-btn level-weak active"   data-level="weak">Weak</button>
+          <button class="seg-btn level-strong"        data-level="strong">Strong</button>
+        </div>
+      </div>
+
+      <!-- Physiological Violence -->
+      <div class="filter-card">
+        <div class="filter-card-label">
+          <span class="cat-dot dot-phv"></span>Physiological Violence
+        </div>
+        <div class="seg-control" data-category="physio_violence">
+          <button class="seg-btn level-weak active"   data-level="weak">Weak</button>
+          <button class="seg-btn level-strong"        data-level="strong">Strong</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Book overview stats -->
+    <div class="sidebar-section" id="stats-section" style="display:none">
+      <div class="sidebar-heading">Book Overview</div>
+      <div class="stats-strip" id="stats-strip"></div>
+    </div>
+
+    <!-- Legend -->
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Legend</div>
+      <div class="legend">
+        <div class="legend-row">
+          <span class="legend-pip" style="background:var(--weak-bg);border:1px solid var(--weak-border)"></span>
+          Weak — mild / implied
+        </div>
+        <div class="legend-row">
+          <span class="legend-pip" style="background:var(--strong-bg);border:1px solid var(--strong-border)"></span>
+          Strong — explicit / graphic
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ─── Reader ──────────────────────────────────────────────────────── -->
+  <main class="reader-main">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <svg width="90" height="90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.9">
+        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+      </svg>
+      <h2>Open a text to begin</h2>
+      <p>Upload any plain .txt file — LiteraryLens will split it into 350-word pages and analyse each for sensitive content.</p>
+      <div class="empty-steps">
+        <div class="empty-step"><span class="step-num">1</span> Click <strong>Upload .txt</strong> in the header</div>
+        <div class="empty-step"><span class="step-num">2</span> Pages are analysed automatically</div>
+        <div class="empty-step"><span class="step-num">3</span> Set filters to your comfort level</div>
+      </div>
+    </div>
+
+    <!-- Active reader content -->
+    <div class="reader-active" id="reader-active">
+
+      <div class="reader-topbar">
+        <span class="page-info-label" id="page-info-label">Page 1 of 1</span>
+        <div class="classification-badges" id="badges-container"></div>
+      </div>
+
+      <div class="text-card-wrapper">
+        <div class="text-card" id="text-card">
+          <p id="page-text"></p>
+        </div>
+        <div class="blur-overlay" id="blur-overlay" onclick="handleBlurClick()">
+          <div class="blur-overlay-hint">⚠ Content advisory — click to review</div>
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <button class="nav-arrow" id="btn-prev" onclick="navigate(-1)" disabled title="Previous page (←)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+
+        <div class="slider-wrap">
+          <input type="range" id="page-slider" min="0" value="0" step="1" />
+          <span class="page-counter" id="page-counter">1 / 1</span>
+        </div>
+
+        <button class="nav-arrow" id="btn-next" onclick="navigate(1)" title="Next page (→)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+</div>
+
+<!-- ─── Mobile bottom nav bar ────────────────────────────────────────────── -->
+<div class="mobile-nav" id="mobile-nav">
+  <button class="nav-arrow" id="mob-btn-prev" onclick="navigate(-1)" disabled>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </button>
+  <div class="slider-wrap">
+    <input type="range" id="mob-page-slider" min="0" value="0" step="1" />
+    <span class="page-counter" id="mob-page-counter">1 / 1</span>
+  </div>
+  <button class="nav-arrow" id="mob-btn-next" onclick="navigate(1)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+</div>
+
+<!-- ─── Trigger Warning Modal ───────────────────────────────────────────── -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title" id="modal-title">Content Advisory</div>
+    <div class="modal-body">
+      This page may contain sensitive content in the following
+      <span id="modal-cat-count">category</span>:
+    </div>
+    <div class="modal-cats" id="modal-cats"></div>
+    <div class="modal-body" style="margin-top:2px">Do you want to read it anyway?</div>
+    <div class="modal-buttons">
+      <button class="btn-no"  onclick="modalDecline()">No, keep hidden</button>
+      <button class="btn-yes" onclick="modalAccept()">Yes, show text</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Script ──────────────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+/* ── Constants & state ────────────────────────────────────────────────── */
+const WORDS_PER_PAGE = 350;
+const STRIDE         = 350;
+const LEVEL_RANK     = { absent: 0, weak: 1, strong: 2 };
+
+const CATEGORIES = {
+  sex_nudity:      { label: 'Sex & Nudity',           dot: '#c8907a' },
+  psych_violence:  { label: 'Psychological Violence', dot: '#c97b52' },
+  physio_violence: { label: 'Physiological Violence', dot: '#9caa8e' },
+};
+
+const state = {
+  pages:       [],  // [{ text, sex_nudity, psych_violence, physio_violence, unlocked, _warned }]
+  currentPage: 0,
+  backend:     'demo',
+  filters:     { sex_nudity: 'absent', psych_violence: 'absent', physio_violence: 'absent' },
+};
+
+/* ── Demo classifier (deterministic, no server needed) ─────────────────── */
+function seededRNG(seed) {
+  return () => {
+    seed = (seed + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < Math.min(s.length, 120); i++)
+    h = (Math.imul(h ^ s.charCodeAt(i), 16777619)) >>> 0;
+  return h;
+}
+function demoClassify(text) {
+  const rng = seededRNG(hashStr(text));
+  const pick = () => { const r = rng(); return r < 0.58 ? 'absent' : r < 0.82 ? 'weak' : 'strong'; };
+  return { sex_nudity: pick(), psych_violence: pick(), physio_violence: pick() };
+}
+
+/* ── Server classifier ─────────────────────────────────────────────────── */
+async function serverClassify(text) {
+  try {
+    const res = await fetch('http://localhost:5000/classify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return await res.json();
+  } catch (e) {
+    console.warn('[LiteraryLens] Server unavailable, using demo:', e.message);
+    return demoClassify(text);
+  }
+}
+
+async function classifyPage(text) {
+  return state.backend === 'local' ? serverClassify(text) : demoClassify(text);
+}
+
+/* ── Text windowing ────────────────────────────────────────────────────── */
+function splitIntoPages(raw) {
+  const words = raw.trim().split(/\s+/).filter(Boolean);
+  const pages = [];
+  for (let i = 0; i < words.length; i += STRIDE)
+    pages.push(words.slice(i, i + WORDS_PER_PAGE).join(' '));
+  return pages;
+}
+
+/* ── File upload ───────────────────────────────────────────────────────── */
+document.getElementById('file-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('file-name').textContent = file.name;
+  const raw = await file.text();
+  await loadText(raw);
+});
+
+async function loadText(raw) {
+  const rawPages = splitIntoPages(raw);
+  setProgress(true, 0);
+  const pages = [];
+  for (let i = 0; i < rawPages.length; i++) {
+    const cls = await classifyPage(rawPages[i]);
+    pages.push({
+      text:            rawPages[i],
+      sex_nudity:      cls.sex_nudity      ?? 'absent',
+      psych_violence:  cls.psych_violence  ?? 'absent',
+      physio_violence: cls.physio_violence ?? 'absent',
+      unlocked: false,
+      _warned:  false,
+    });
+    setProgress(true, Math.round(((i + 1) / rawPages.length) * 100));
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  state.pages       = pages;
+  state.currentPage = 0;
+  setProgress(false, 100);
+  showReaderView();
+  renderPage();
+  renderStats();
+}
+
+/* ── Rendering ─────────────────────────────────────────────────────────── */
+function showReaderView() {
+  document.getElementById('empty-state').style.display   = 'none';
+  document.getElementById('reader-active').classList.add('visible');
+  document.getElementById('stats-section').style.display = 'block';
+}
+
+function triggeredCategories(page) {
+  return Object.entries(state.filters)
+    .filter(([cat, threshold]) => threshold !== 'absent' && LEVEL_RANK[page[cat]] >= LEVEL_RANK[threshold])
+    .map(([cat]) => ({ cat, label: CATEGORIES[cat].label, level: page[cat] }));
+}
+
+function renderPage() {
+  const { pages, currentPage } = state;
+  if (!pages.length) return;
+  const page  = pages[currentPage];
+  const total = pages.length;
+
+  document.getElementById('btn-prev').disabled             = currentPage === 0;
+  document.getElementById('btn-next').disabled             = currentPage === total - 1;
+  const slider = document.getElementById('page-slider');
+  slider.max   = total - 1;
+  slider.value = currentPage;
+  document.getElementById('page-counter').textContent    = `${currentPage + 1} / ${total}`;
+  document.getElementById('page-info-label').textContent = `Page ${currentPage + 1} of ${total}`;
+
+  // Sync mobile nav
+  const mobSlider = document.getElementById('mob-page-slider');
+  mobSlider.max   = total - 1;
+  mobSlider.value = currentPage;
+  document.getElementById('mob-btn-prev').disabled    = currentPage === 0;
+  document.getElementById('mob-btn-next').disabled    = currentPage === total - 1;
+  document.getElementById('mob-page-counter').textContent = `${currentPage + 1} / ${total}`;
+
+  document.getElementById('page-text').textContent = page.text;
+  renderBadges(page);
+
+  const triggered    = triggeredCategories(page);
+  const shouldBlur   = triggered.length > 0 && !page.unlocked;
+  document.getElementById('text-card').classList.toggle('is-blurred', shouldBlur);
+  document.getElementById('blur-overlay').classList.toggle('visible', shouldBlur);
+
+  if (shouldBlur && !page._warned) {
+    page._warned = true;
+    setTimeout(() => openModal(triggered), 200);
+  }
+}
+
+function renderBadges(page) {
+  const c = document.getElementById('badges-container');
+  c.innerHTML = '';
+  Object.entries(CATEGORIES).forEach(([cat, meta]) => {
+    const level = page[cat] || 'absent';
+    const b     = document.createElement('span');
+    b.className = `cbadge cbadge-${level}`;
+    b.innerHTML = `<span class="cbadge-dot" style="background:${meta.dot}"></span>${meta.label.split(' ')[0]} <strong>${level}</strong>`;
+    c.appendChild(b);
+  });
+}
+
+function renderStats() {
+  const strip = document.getElementById('stats-strip');
+  strip.innerHTML = '';
+  const total = state.pages.length;
+  let hasAny = false;
+  Object.entries(CATEGORIES).forEach(([cat, meta]) => {
+    const counts = { absent: 0, weak: 0, strong: 0 };
+    state.pages.forEach(p => counts[p[cat]]++);
+    ['weak', 'strong'].forEach(level => {
+      if (!counts[level]) return;
+      hasAny = true;
+      const pct   = Math.round((counts[level] / total) * 100);
+      const color = level === 'weak' ? 'var(--peach)' : 'var(--dusty-rose)';
+      strip.innerHTML += `<div class="stat-row">
+        <span class="stat-label" style="color:${meta.dot}">${meta.label.split(' ')[0]}&thinsp;${level}</span>
+        <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <span class="stat-count">${counts[level]}p</span>
+      </div>`;
+    });
+  });
+  if (!hasAny) strip.innerHTML = '<span style="font-size:0.69rem;color:var(--brown-faint)">No flagged content found.</span>';
+}
+
+/* ── Navigation ────────────────────────────────────────────────────────── */
+function navigate(delta) {
+  const next = state.currentPage + delta;
+  if (next < 0 || next >= state.pages.length) return;
+  state.currentPage = next;
+  document.getElementById('text-card').scrollTop = 0;
+  renderPage();
+}
+
+document.getElementById('page-slider').addEventListener('input', e => {
+  state.currentPage = +e.target.value;
+  document.getElementById('text-card').scrollTop = 0;
+  renderPage();
+});
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('modal-backdrop').classList.contains('open')) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') navigate(1);
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   navigate(-1);
+});
+
+/* ── Filter controls ───────────────────────────────────────────────────── */
+document.querySelectorAll('.seg-control').forEach(ctrl => {
+  const category = ctrl.dataset.category;
+  ctrl.querySelectorAll('.seg-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ctrl.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.filters[category] = btn.dataset.level;
+
+      const page = state.pages[state.currentPage];
+      if (!page) return;
+      const triggered = triggeredCategories(page);
+      if (triggered.length === 0) { page.unlocked = true; page._warned = false; }
+      renderPage();
+      if (triggered.length > 0 && !page.unlocked && !page._warned) {
+        page._warned = true;
+        setTimeout(() => openModal(triggered), 100);
+      }
+    });
+  });
+});
+
+/* ── Modal ─────────────────────────────────────────────────────────────── */
+function openModal(triggered) {
+  const catList = document.getElementById('modal-cats');
+  catList.innerHTML = '';
+  triggered.forEach(({ label, level }) => {
+    catList.innerHTML += `<div class="modal-cat-row">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      ${label} — <em>${level}</em>
+    </div>`;
+  });
+  document.getElementById('modal-cat-count').textContent = triggered.length === 1 ? 'category' : 'categories';
+  document.getElementById('modal-backdrop').classList.add('open');
+}
+
+function handleBlurClick() { openModal(triggeredCategories(state.pages[state.currentPage])); }
+function modalAccept()  { state.pages[state.currentPage].unlocked = true; document.getElementById('modal-backdrop').classList.remove('open'); renderPage(); }
+function modalDecline() { document.getElementById('modal-backdrop').classList.remove('open'); }
+
+document.getElementById('modal-backdrop').addEventListener('click', e => {
+  if (e.target === e.currentTarget) modalDecline();
+});
+
+/* ── Progress bar ──────────────────────────────────────────────────────── */
+function setProgress(active, pct) {
+  document.getElementById('progress-track').classList.toggle('active', active);
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+/* ── Drawer (mobile sidebar) ───────────────────────────────────────────── */
+function openDrawer() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ── Mobile slider sync ────────────────────────────────────────────────── */
+document.getElementById('mob-page-slider').addEventListener('input', e => {
+  state.currentPage = +e.target.value;
+  document.getElementById('text-card').scrollTop = 0;
+  renderPage();
+});
+
+/* ── Touch swipe navigation ────────────────────────────────────────────── */
+(function() {
+  let startX = 0, startY = 0;
+  const card = document.getElementById('text-card');
+  card.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+  card.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+      navigate(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+})();
+
+/* ── Backend toggle ────────────────────────────────────────────────────── */
+document.getElementById('backend-select').addEventListener('change', e => { state.backend = e.target.value; });
+</script>
+</body>
+</html>
