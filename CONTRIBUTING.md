@@ -12,7 +12,7 @@ which contributions are accepted.
 code, or otherwise contributing code or documentation to this
 repository, you agree to the following terms:**
 
-1. **Copyright assignment.** You assign to [YOUR FULL NAME]
+1. **Copyright assignment.** You assign to Svenja Guhr
    all right, title, and interest — including all copyright —
    in and to your contribution, worldwide and in perpetuity.
    This allows the project owner to relicense, sublicense,
@@ -92,4 +92,4 @@ to the contribution in writing.
 ## Questions
 
 For questions about contributing or licensing, contact:
-[YOUR EMAIL ADDRESS]
+svenja.guhr@gmail.com
