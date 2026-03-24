@@ -1,0 +1,71 @@
+LiteraryLens — Content-Aware Literary Text Reader
+Copyright 2026 [YOUR FULL NAME]
+
+This product is licensed under the Apache License, Version 2.0.
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROPRIETARY COMPONENTS — NOT COVERED BY THIS LICENSE
+
+The following components are proprietary and are expressly
+excluded from the Apache 2.0 license grant above:
+
+  1. Training data
+     All annotated datasets, CSV files, and labelled passage
+     collections used to train or evaluate classification models,
+     including but not limited to data for the categories
+     "Sex & Nudity", "Psychological Violence", and
+     "Physiological Violence".
+
+  2. Fine-tuned model weights
+     All model checkpoint files, weight tensors, and derived
+     artefacts produced by fine-tuning pre-trained language
+     models (e.g. XLM-RoBERTa) on the proprietary training data
+     described above.
+
+  3. Classification taxonomy
+     The specific ordinal labelling scheme (absent / weak / strong)
+     and its application to the three content categories as
+     developed and documented by the copyright holder.
+
+These components may not be copied, redistributed, sublicensed,
+or used in any commercial or non-commercial product or service
+without the express written permission of the copyright holder.
+
+For licensing enquiries contact: [YOUR EMAIL ADDRESS]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+THIRD-PARTY COMPONENTS
+
+This project makes use of the following open-source libraries,
+each governed by their own license terms:
+
+  • PyTorch               BSD-style license
+                         https://github.com/pytorch/pytorch/blob/main/LICENSE
+
+  • Hugging Face
+    Transformers          Apache License 2.0
+                         https://github.com/huggingface/transformers/blob/main/LICENSE
+
+  • spaCy                MIT License
+                         https://github.com/explosion/spaCy/blob/master/LICENSE
+
+  • Stanza               Apache License 2.0
+                         https://github.com/stanfordnlp/stanza/blob/main/LICENSE
+
+  • scikit-learn         BSD 3-Clause License
+                         https://github.com/scikit-learn/scikit-learn/blob/main/COPYING
+
+  • Flask                BSD 3-Clause License
+                         https://github.com/pallets/flask/blob/main/LICENSE.txt
+
+  • Playfair Display     SIL Open Font License 1.1
+  • DM Sans              SIL Open Font License 1.1
+                         https://fonts.google.com
+
+The use of these libraries does not imply endorsement by their
+respective authors or maintainers.
